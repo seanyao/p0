@@ -16,8 +16,8 @@
     "max_size": 1000
   },
   "limits": {
-    "min_locations": 3,
-    "max_locations": 8,
+    "min_locations": 1,
+    "max_locations": 20,
     "daily_api_calls": 10000
   }
 }

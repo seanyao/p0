@@ -130,15 +130,14 @@ class LocationParser:
         duplicate_locations = []
         messages = []
         
-        # 检查重复
-        seen = set()
-        for loc in locations:
-            if loc in seen:
-                duplicate_locations.append(loc)
-            seen.add(loc)
+        # 检查连续重复（根据spec要求，只检测连续重复）
+        for i in range(1, len(locations)):
+            if locations[i] == locations[i-1]:
+                if locations[i] not in duplicate_locations:
+                    duplicate_locations.append(locations[i])
         
         if duplicate_locations:
-            messages.append(f"发现重复地名：{', '.join(duplicate_locations)}")
+            messages.append(f"发现连续地名重复：{', '.join(duplicate_locations)}")
         
         # 检查地名有效性（这里简化处理，实际应该调用地图API验证）
         for loc in locations:
