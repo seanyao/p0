@@ -42,7 +42,31 @@ export const locationService = {
   async parseLocation(name: string): Promise<ParseResult> {
     try {
       const response = await api.post('/parse', { input: name })
-      return response.data
+      const backendData = response.data
+      
+      // 转换后端数据格式为前端期望格式
+      if (backendData.success && backendData.data?.coordinates?.length > 0) {
+        const coord = backendData.data.coordinates[0]
+        return {
+          success: true,
+          location: {
+            name: coord.name || name,
+            coordinates: {
+              longitude: coord.lng,
+              latitude: coord.lat
+            },
+            level: coord.level,
+            address: coord.name
+          },
+          suggestions: backendData.data.suggestions || []
+        }
+      } else {
+        return {
+          success: false,
+          error: backendData.message || '解析失败',
+          suggestions: backendData.data?.suggestions || []
+        }
+      }
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.error || '网络请求失败')
@@ -55,7 +79,44 @@ export const locationService = {
   async parseBatch(input: string): Promise<BatchParseResult> {
     try {
       const response = await api.post('/parse', { input })
-      return response.data
+      const backendData = response.data
+      
+      // 转换批量解析结果格式
+      if (backendData.success && backendData.data?.coordinates) {
+        const results: ParseResult[] = backendData.data.coordinates.map((coord: any, index: number) => ({
+          success: true,
+          location: {
+            name: coord.name || `位置${index + 1}`,
+            coordinates: {
+              longitude: coord.lng,
+              latitude: coord.lat
+            },
+            level: coord.level,
+            address: coord.name
+          }
+        }))
+        
+        return {
+          summary: {
+            total: results.length,
+            successful: results.length,
+            failed: 0
+          },
+          results
+        }
+      } else {
+        return {
+          summary: {
+            total: 0,
+            successful: 0,
+            failed: 1
+          },
+          results: [{
+            success: false,
+            error: backendData.message || '批量解析失败'
+          }]
+        }
+      }
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(error.response?.data?.error || '网络请求失败')
