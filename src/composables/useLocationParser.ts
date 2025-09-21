@@ -2,7 +2,7 @@
  * 地名解析组合式函数
  */
 
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 import type { LocationInput, ParseResult, BatchParseResult } from '../types/location'
 import { locationService } from '../services/locationService'
 

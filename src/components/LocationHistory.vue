@@ -9,7 +9,7 @@
     
     <div class="history-list">
       <div 
-        v-for="item in history" 
+        v-for="item in props.history" 
         :key="item.id"
         class="history-item"
         @click="$emit('select-location', item.location)"

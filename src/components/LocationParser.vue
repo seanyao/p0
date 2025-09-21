@@ -1,7 +1,7 @@
 <template>
-  <div class="location-parser" :class="className">
+  <div class="location-parser" :class="props.className">
     <!-- 模式切换 -->
-    <div v-if="showBatchMode" class="mode-switcher">
+    <div v-if="props.showBatchMode" class="mode-switcher">
       <button 
         :class="{ active: mode === 'single' }"
         @click="mode = 'single'"
@@ -22,7 +22,7 @@
         <input
           v-model="input"
           type="text"
-          :placeholder="placeholder"
+          :placeholder="props.placeholder"
           class="location-input"
           @keyup.enter="handleSingleParse"
           :disabled="isLoading"
@@ -97,7 +97,7 @@
 
     <!-- 历史记录 -->
     <LocationHistory
-      v-if="showHistory && history.length > 0"
+      v-if="props.showHistory && history.length > 0"
       :history="history"
       @clear-history="clearHistory"
       @select-location="handleHistorySelect"
@@ -110,7 +110,7 @@
  * 地名解析组件 - Vue 3版本
  */
 
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import type { LocationInput } from '../types/location'
 import { useLocationParser } from '../composables/useLocationParser'
 import { useLocationAutoComplete } from '../composables/useLocationAutoComplete'
@@ -159,8 +159,7 @@ const {
   input,
   correctedInput,
   suggestions,
-  selectSuggestion,
-  clearInput
+  selectSuggestion
 } = useLocationAutoComplete()
 
 const { history, addToHistory, clearHistory } = useLocationHistory()

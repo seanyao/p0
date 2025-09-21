@@ -9,19 +9,18 @@ export default defineConfig({
   // 路径解析
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src-vue'),
-      '@components': resolve(__dirname, 'src-vue/components'),
-      '@services': resolve(__dirname, 'src-vue/services'),
-      '@utils': resolve(__dirname, 'src-vue/utils'),
-      '@types': resolve(__dirname, 'src-vue/types'),
-      '@composables': resolve(__dirname, 'src-vue/composables'),
-      '@views': resolve(__dirname, 'src-vue/views'),
+      '@': resolve(__dirname, 'src'),
+      '@components': resolve(__dirname, 'src/components'),
+      '@services': resolve(__dirname, 'src/services'),
+      '@utils': resolve(__dirname, 'src/utils'),
+      '@types': resolve(__dirname, 'src/types'),
+      '@composables': resolve(__dirname, 'src/composables'),
     },
   },
   
   // 开发服务器配置
   server: {
-    port: 3001,
+    port: 3000,
     host: true,
     open: true,
     cors: true,
@@ -44,7 +43,7 @@ export default defineConfig({
   
   // 构建配置
   build: {
-    outDir: 'dist-vue',
+    outDir: 'dist',
     sourcemap: true,
     minify: 'terser',
     terserOptions: {
@@ -56,15 +55,16 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
+          // 将Vue相关库分离到单独的chunk
           vue: ['vue', 'vue-router', 'pinia'],
-          vendor: ['axios', '@vueuse/core'],
         },
       },
     },
+    // 设置chunk大小警告限制
     chunkSizeWarningLimit: 1000,
   },
   
-  // 环境变量前缀
+  // 环境变量配置
   envPrefix: 'VITE_',
   
   // CSS配置
@@ -72,20 +72,20 @@ export default defineConfig({
     devSourcemap: true,
   },
   
-  // 依赖优化
+  // 优化配置
   optimizeDeps: {
     include: ['vue', 'vue-router', 'pinia', 'axios'],
     exclude: [],
   },
   
-  // 预览配置
+  // 预览服务器配置
   preview: {
-    port: 4174,
+    port: 4173,
     host: true,
     cors: true,
   },
   
-  // 定义全局常量
+  // 全局常量定义
   define: {
     __APP_VERSION__: JSON.stringify('1.0.0'),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),

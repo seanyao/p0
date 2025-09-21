@@ -2,7 +2,7 @@
  * 地名自动完成组合式函数
  */
 
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import type { AutoCompleteSuggestion } from '../types/location'
 
 export function useLocationAutoComplete() {

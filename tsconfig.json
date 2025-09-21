@@ -23,23 +23,27 @@
     /* Path mapping */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src-vue/*"],
-      "@components/*": ["src-vue/components/*"],
-      "@services/*": ["src-vue/services/*"],
-      "@utils/*": ["src-vue/utils/*"],
-      "@types/*": ["src-vue/types/*"],
-      "@composables/*": ["src-vue/composables/*"],
-      "@views/*": ["src-vue/views/*"]
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@services/*": ["src/services/*"],
+      "@utils/*": ["src/utils/*"],
+      "@types/*": ["src/types/*"],
+      "@composables/*": ["src/composables/*"]
     },
 
-    /* Vue specific */
+    /* Node.js types */
     "types": ["vite/client", "node"]
   },
   "include": [
-    "src-vue/**/*.ts", 
-    "src-vue/**/*.d.ts", 
-    "src-vue/**/*.tsx", 
-    "src-vue/**/*.vue"
+    "src/**/*",
+    "src/**/*.vue",
+    "src/**/*.ts"
   ],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "exclude": [
+    "node_modules",
+    "dist"
+  ],
+  "references": [
+    { "path": "./tsconfig.node.json" }
+  ]
 }
