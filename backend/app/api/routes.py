@@ -3,15 +3,19 @@ from fastapi import APIRouter, HTTPException, Depends
 from app.models import (
     LocationParseRequest, 
     LocationParseResponse, 
-    HealthCheckResponse
+    HealthCheckResponse,
+    RouteGenerateRequest,
+    RouteGenerateResponse
 )
 from app.services import LocationParser
+from app.services.route_generator import RouteGenerator
 from app.config import config
 
 router = APIRouter()
 
 # 全局服务实例
 location_parser = LocationParser()
+route_generator = RouteGenerator()
 
 @router.post("/parse", response_model=LocationParseResponse)
 async def parse_locations(request: LocationParseRequest):
@@ -31,6 +35,35 @@ async def parse_locations(request: LocationParseRequest):
             code=200 if result.success else 400
         )
         
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"服务器内部错误: {str(e)}"
+        )
+
+@router.post("/generate-route", response_model=RouteGenerateResponse)
+async def generate_route(request: RouteGenerateRequest):
+    """
+    生成路线接口
+    
+    - **coordinates**: 地点坐标列表，至少2个坐标点
+    - 返回路线数据，包括路径点、地图边界、标签位置等
+    """
+    try:
+        route_data = await route_generator.generate_route(request.coordinates)
+        
+        return RouteGenerateResponse(
+            success=True,
+            data=route_data,
+            message="路线生成成功",
+            code=200
+        )
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"请求参数错误: {str(e)}"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,
