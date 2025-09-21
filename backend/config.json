@@ -1,0 +1,23 @@
+{
+  "amap": {
+    "api_key": "389de8d89ebceea4e8e0959b0726630b",
+    "security_key": "",
+    "base_url": "https://restapi.amap.com/v3"
+  },
+  "app": {
+    "title": "Travel Route Map API",
+    "version": "1.0.0",
+    "debug": true,
+    "host": "0.0.0.0",
+    "port": 8000
+  },
+  "cache": {
+    "ttl_seconds": 86400,
+    "max_size": 1000
+  },
+  "limits": {
+    "min_locations": 3,
+    "max_locations": 8,
+    "daily_api_calls": 10000
+  }
+}
