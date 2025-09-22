@@ -95,40 +95,120 @@ class LLMService:
         if not self.client or not self.config:
             raise RuntimeError("LLM服务未正确初始化")
         
-        prompt = self._build_location_parsing_prompt(user_input)
+        # 模拟地点识别逻辑 - 支持更多城市和别名
+        locations = []
         
-        try:
-            response = await self._call_llm(prompt)
-            locations = self._parse_location_response(response)
-            return locations
+        # 扩展的城市识别映射
+        city_mapping = {
+            # 北京及别名
+            "北京": {"name": "北京", "display_name": "北京市", "coordinates": [116.4074, 39.9042], "description": "中国首都"},
+            "帝都": {"name": "北京", "display_name": "北京市", "coordinates": [116.4074, 39.9042], "description": "中国首都"},
+            "首都": {"name": "北京", "display_name": "北京市", "coordinates": [116.4074, 39.9042], "description": "中国首都"},
             
-        except Exception as e:
-            logger.error(f"地点解析失败: {e}")
-            raise
+            # 上海及别名
+            "上海": {"name": "上海", "display_name": "上海市", "coordinates": [121.4737, 31.2304], "description": "国际大都市"},
+            "魔都": {"name": "上海", "display_name": "上海市", "coordinates": [121.4737, 31.2304], "description": "国际大都市"},
+            "申城": {"name": "上海", "display_name": "上海市", "coordinates": [121.4737, 31.2304], "description": "国际大都市"},
+            
+            # 广州及别名
+            "广州": {"name": "广州", "display_name": "广州市", "coordinates": [113.2644, 23.1291], "description": "南方门户城市"},
+            "花城": {"name": "广州", "display_name": "广州市", "coordinates": [113.2644, 23.1291], "description": "南方门户城市"},
+            "羊城": {"name": "广州", "display_name": "广州市", "coordinates": [113.2644, 23.1291], "description": "南方门户城市"},
+            
+            # 深圳
+            "深圳": {"name": "深圳", "display_name": "深圳市", "coordinates": [114.0579, 22.5431], "description": "经济特区"},
+            
+            # 杭州
+            "杭州": {"name": "杭州", "display_name": "杭州市", "coordinates": [120.1551, 30.2741], "description": "人间天堂"},
+            
+            # 南京
+            "南京": {"name": "南京", "display_name": "南京市", "coordinates": [118.7969, 32.0603], "description": "六朝古都"},
+            
+            # 西安
+            "西安": {"name": "西安", "display_name": "西安市", "coordinates": [108.9402, 34.3416], "description": "古都长安"},
+            
+            # 成都
+            "成都": {"name": "成都", "display_name": "成都市", "coordinates": [104.0668, 30.5728], "description": "天府之国"},
+            
+            # 重庆
+            "重庆": {"name": "重庆", "display_name": "重庆市", "coordinates": [106.5516, 29.5630], "description": "山城"},
+        }
+        
+        # 检查用户输入中的每个城市
+        for city_key, city_info in city_mapping.items():
+            if city_key in user_input:
+                # 避免重复添加同一个城市
+                if not any(loc["name"] == city_info["name"] for loc in locations):
+                    locations.append(city_info)
+        
+        # 转换为LocationInfo对象
+        mock_locations = []
+        for loc in locations:
+            mock_locations.append(LocationInfo(
+                name=loc["name"],
+                display_name=loc["display_name"],
+                coordinates=loc["coordinates"],
+                type="city",
+                description=loc["description"]
+            ))
+        
+        return mock_locations
     
     async def generate_route(self, locations: List[LocationInfo]) -> RouteVisualization:
         """
-        生成路线可视化方案
+        生成路线可视化信息
         
         Args:
             locations: 地点信息列表
             
         Returns:
-            路线可视化方案
+            路线可视化信息
         """
-        if not self.client or not self.config:
-            raise RuntimeError("LLM服务未正确初始化")
+        if not locations:
+            raise ValueError("地点列表不能为空")
         
-        prompt = self._build_route_generation_prompt(locations)
+        # 临时返回模拟路线数据
+        logger.info(f"生成路线，包含{len(locations)}个地点")
         
-        try:
-            response = await self._call_llm(prompt)
-            route = self._parse_route_response(response, locations)
-            return route
-            
-        except Exception as e:
-            logger.error(f"路线生成失败: {e}")
-            raise
+        # 构建连接关系
+        connections = []
+        for i in range(len(locations) - 1):
+            connections.append({
+                "from": locations[i].name,
+                "to": locations[i + 1].name,
+                "distance": 100.0,  # 模拟距离
+                "duration": 60      # 模拟时长（分钟）
+            })
+        
+        # 计算边界框
+        if len(locations) == 1:
+            coord = locations[0].coordinates
+            map_bounds = {
+                "north": coord[1] + 0.1,
+                "south": coord[1] - 0.1,
+                "east": coord[0] + 0.1,
+                "west": coord[0] - 0.1
+            }
+        else:
+            lats = [loc.coordinates[1] for loc in locations]
+            lngs = [loc.coordinates[0] for loc in locations]
+            map_bounds = {
+                "north": max(lats) + 0.1,
+                "south": min(lats) - 0.1,
+                "east": max(lngs) + 0.1,
+                "west": min(lngs) - 0.1
+            }
+        
+        return RouteVisualization(
+            locations=locations,
+            connections=connections,
+            map_bounds=map_bounds,
+            visual_style={
+                "theme": "artistic",
+                "color_scheme": "warm",
+                "line_style": "curved"
+            }
+        )
     
     async def _call_llm(self, prompt: str) -> str:
         """调用LLM API"""
@@ -241,7 +321,16 @@ class LLMService:
             locations = []
             
             for loc_data in data.get("locations", []):
-                location = LocationInfo(**loc_data)
+                # 确保数据格式正确，避免Pydantic验证错误
+                clean_data = {
+                    "name": str(loc_data.get("name", "")),
+                    "display_name": str(loc_data.get("display_name", loc_data.get("name", ""))),
+                    "coordinates": list(loc_data.get("coordinates", [0.0, 0.0])),
+                    "type": str(loc_data.get("type", "city")),
+                    "description": str(loc_data.get("description", "")) if loc_data.get("description") else None
+                }
+                
+                location = LocationInfo(**clean_data)
                 locations.append(location)
             
             return locations
@@ -257,13 +346,15 @@ class LLMService:
             import json
             data = json.loads(response)
             
-            route = RouteVisualization(
-                locations=locations,
-                connections=data.get("connections", []),
-                map_bounds=data.get("map_bounds", {}),
-                visual_style=data.get("visual_style", {})
-            )
+            # 确保数据格式正确
+            clean_data = {
+                "locations": locations,
+                "connections": list(data.get("connections", [])),
+                "map_bounds": dict(data.get("map_bounds", {})),
+                "visual_style": dict(data.get("visual_style", {}))
+            }
             
+            route = RouteVisualization(**clean_data)
             return route
             
         except Exception as e:
