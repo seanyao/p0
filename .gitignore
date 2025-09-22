@@ -7,6 +7,16 @@
 ehthumbs.db
 Thumbs.db
 
+# Configuration files with sensitive data
+backend/config/llm_config.yaml
+backend/config/llm_config.yml
+backend/config/*_config.yaml
+backend/config/*_config.yml
+*.env.local
+*.env.production
+config/secrets.yaml
+config/secrets.yml
+
 # IDE
 .vscode/
 .idea/

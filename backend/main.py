@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import router
+from app.api.ai_routes import router as ai_router
 from app.config import config
 
 # 获取应用配置
@@ -26,6 +27,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(router, prefix="/api/v1", tags=["location"])
+app.include_router(ai_router)
 
 @app.get("/")
 async def root():

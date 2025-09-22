@@ -11,6 +11,7 @@ specs/
 ├── README.md                    # 本说明文档
 ├── spec-1.0-project-overview.md # 项目总览和架构设计
 ├── spec-1.1-location-parser.md  # 地名解析功能
+├── spec-1.7-ai-route-planner.md  # AI智能路线规划系统
 ├── spec-1.2-route-generator.md  # 路线生成功能  
 ├── spec-1.3-visual-renderer.md  # 视觉渲染功能
 ├── spec-1.4-style-adjuster.md   # 样式调整功能
@@ -45,6 +46,7 @@ specs/
 ```
 spec-1.1 → feature/spec-1.1-location-parser
 spec-1.2 → feature/spec-1.2-route-generator
+spec-1.7 → feature/spec-1.7-ai-route-planner
 ```
 
 ---

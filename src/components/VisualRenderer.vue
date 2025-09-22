@@ -1,454 +1,520 @@
 <template>
-  <div class="visual-renderer">
-    <div class="renderer-controls">
-      <div class="control-group">
-        <label>颜色方案:</label>
-        <select v-model="selectedColorScheme" @change="updateStyle">
-          <option value="default">默认</option>
-          <option value="dark">深色</option>
-          <option value="vibrant">鲜艳</option>
-          <option value="pastel">柔和</option>
-        </select>
-      </div>
-      
-      <div class="control-group">
-        <label>线条宽度:</label>
-        <input 
-          type="range" 
-          v-model="lineWidth" 
-          min="1" 
-          max="10" 
-          @input="updateStyle"
-        />
-        <span>{{ lineWidth }}px</span>
-      </div>
-      
-      <div class="control-group">
-        <label>字体大小:</label>
-        <input 
-          type="range" 
-          v-model="fontSize" 
-          min="10" 
-          max="24" 
-          @input="updateStyle"
-        />
-        <span>{{ fontSize }}px</span>
-      </div>
-      
-      <div class="control-group">
-        <button @click="toggleOptimization" :class="{ active: optimizationEnabled }">
-          {{ optimizationEnabled ? '关闭优化' : '启用优化' }}
+  <div class="coordinate-visualizer">
+    <div class="visualization-header">
+      <h3>🎨 智能坐标可视化</h3>
+      <div class="chart-controls">
+        <button 
+          v-for="chartType in chartTypes" 
+          :key="chartType.value"
+          @click="selectedChartType = chartType.value"
+          :class="{ active: selectedChartType === chartType.value }"
+          class="chart-type-btn"
+        >
+          {{ chartType.icon }} {{ chartType.label }}
         </button>
-        <button @click="clearRenderer">清空画布</button>
-        <button @click="exportCanvas">导出图片</button>
       </div>
     </div>
-    
-    <div class="canvas-container">
+
+    <!-- 散点图可视化 -->
+    <div v-if="selectedChartType === 'scatter'" class="chart-container">
       <canvas 
-        ref="canvas" 
+        ref="scatterCanvas" 
         :width="canvasWidth" 
         :height="canvasHeight"
-        @mousedown="handleMouseDown"
-        @mousemove="handleMouseMove"
-        @mouseup="handleMouseUp"
-        @wheel="handleWheel"
+        class="visualization-canvas"
       ></canvas>
-      
-      <div v-if="showPerformanceInfo" class="performance-info">
-        <h4>性能信息</h4>
-        <div class="metric">
-          <span>帧率:</span>
-          <span>{{ performanceMetrics.frameRate?.toFixed(1) || 0 }} FPS</span>
+      <div class="chart-info">
+        <p>📍 基于真实经纬度坐标的散点分布图</p>
+        <p>🎯 显示地点间的地理关系和距离分布</p>
+      </div>
+    </div>
+
+    <!-- 连线图可视化 -->
+    <div v-if="selectedChartType === 'network'" class="chart-container">
+      <canvas 
+        ref="networkCanvas" 
+        :width="canvasWidth" 
+        :height="canvasHeight"
+        class="visualization-canvas"
+      ></canvas>
+      <div class="chart-info">
+        <p>🔗 智能路径连接图</p>
+        <p>📏 按地理距离优化的连接路径</p>
+      </div>
+    </div>
+
+    <!-- 热力图可视化 -->
+    <div v-if="selectedChartType === 'heatmap'" class="chart-container">
+      <canvas 
+        ref="heatmapCanvas" 
+        :width="canvasWidth" 
+        :height="canvasHeight"
+        class="visualization-canvas"
+      ></canvas>
+      <div class="chart-info">
+        <p>🌡️ 地理密度热力图</p>
+        <p>🎨 基于坐标密度的颜色渐变显示</p>
+      </div>
+    </div>
+
+    <!-- 统计信息 -->
+    <div class="statistics-panel">
+      <h4>📊 地理数据统计</h4>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-label">地点数量</span>
+          <span class="stat-value">{{ locations.length }}</span>
         </div>
-        <div class="metric">
-          <span>渲染时间:</span>
-          <span>{{ performanceMetrics.renderTime?.toFixed(2) || 0 }} ms</span>
+        <div class="stat-item">
+          <span class="stat-label">经度范围</span>
+          <span class="stat-value">{{ longitudeRange }}</span>
         </div>
-        <div class="metric">
-          <span>内存使用:</span>
-          <span>{{ performanceMetrics.memoryUsage?.toFixed(1) || 0 }} MB</span>
+        <div class="stat-item">
+          <span class="stat-label">纬度范围</span>
+          <span class="stat-value">{{ latitudeRange }}</span>
         </div>
-        <div class="recommendations" v-if="recommendations.length > 0">
-          <h5>优化建议:</h5>
-          <ul>
-            <li v-for="rec in recommendations" :key="rec">{{ rec }}</li>
-          </ul>
+        <div class="stat-item">
+          <span class="stat-label">覆盖面积</span>
+          <span class="stat-value">{{ coverageArea }}</span>
         </div>
       </div>
     </div>
-    
-    <div class="status-bar">
-      <span>画布尺寸: {{ canvasWidth }} × {{ canvasHeight }}</span>
-      <span>缩放: {{ (zoomLevel * 100).toFixed(0) }}%</span>
-      <span>元素数量: {{ elementCount }}</span>
-      <button @click="showPerformanceInfo = !showPerformanceInfo">
-        {{ showPerformanceInfo ? '隐藏' : '显示' }}性能信息
+
+    <!-- 导出功能 -->
+    <div class="export-section">
+      <button @click="exportVisualization" class="export-btn">
+        📥 导出可视化图表
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
-import { visualRenderer } from '../services/visualRenderer'
-import { styleManager } from '../services/styleManager'
-import { RouteData, StyleConfig } from '../types/visual'
+import { ref, computed, onMounted, watch } from 'vue'
+
+// Props
+const props = defineProps<{
+  locations: Array<{
+    name: string
+    coordinates: {
+      longitude: number
+      latitude: number
+    }
+  }>
+}>()
 
 // 响应式数据
-const canvas = ref<HTMLCanvasElement>()
-const selectedColorScheme = ref('default')
-const lineWidth = ref(3)
-const fontSize = ref(14)
-const optimizationEnabled = ref(true)
-const showPerformanceInfo = ref(false)
+const scatterCanvas = ref<HTMLCanvasElement>()
+const networkCanvas = ref<HTMLCanvasElement>()
+const heatmapCanvas = ref<HTMLCanvasElement>()
 const canvasWidth = ref(800)
-const canvasHeight = ref(600)
-const zoomLevel = ref(1.0)
-const elementCount = ref(0)
+const canvasHeight = ref(500)
+const selectedChartType = ref('scatter')
 
-// 性能数据
-const performanceMetrics = ref({
-  frameRate: 0,
-  renderTime: 0,
-  memoryUsage: 0
+// 图表类型配置
+const chartTypes = ref([
+  { value: 'scatter', label: '散点图', icon: '📍' },
+  { value: 'network', label: '连线图', icon: '🔗' },
+  { value: 'heatmap', label: '热力图', icon: '🌡️' }
+])
+
+// 计算属性 - 地理数据统计
+const longitudeRange = computed(() => {
+  if (props.locations.length === 0) return '0°'
+  const lngs = props.locations.map(loc => loc.coordinates.longitude)
+  const min = Math.min(...lngs)
+  const max = Math.max(...lngs)
+  return `${min.toFixed(3)}° ~ ${max.toFixed(3)}°`
 })
-const recommendations = ref<string[]>([])
 
-// 交互状态
-const isDragging = ref(false)
-const lastMousePos = ref({ x: 0, y: 0 })
-const panOffset = ref({ x: 0, y: 0 })
+const latitudeRange = computed(() => {
+  if (props.locations.length === 0) return '0°'
+  const lats = props.locations.map(loc => loc.coordinates.latitude)
+  const min = Math.min(...lats)
+  const max = Math.max(...lats)
+  return `${min.toFixed(3)}° ~ ${max.toFixed(3)}°`
+})
 
-// 定时器
-let performanceTimer: number | null = null
+const coverageArea = computed(() => {
+  if (props.locations.length < 2) return '0 km²'
+  const lngs = props.locations.map(loc => loc.coordinates.longitude)
+  const lats = props.locations.map(loc => loc.coordinates.latitude)
+  const lngRange = Math.max(...lngs) - Math.min(...lngs)
+  const latRange = Math.max(...lats) - Math.min(...lats)
+  // 简化的面积计算（实际应该考虑地球曲率）
+  const area = lngRange * latRange * 111 * 111 // 大约每度111km
+  return `${area.toFixed(0)} km²`
+})
 
-// 组件挂载
-onMounted(async () => {
-  await nextTick()
-  if (canvas.value) {
-    initRenderer()
-    startPerformanceMonitoring()
+// 坐标转换函数
+function coordinateToCanvas(longitude: number, latitude: number) {
+  if (props.locations.length === 0) return { x: 0, y: 0 }
+  
+  const lngs = props.locations.map(loc => loc.coordinates.longitude)
+  const lats = props.locations.map(loc => loc.coordinates.latitude)
+  
+  const minLng = Math.min(...lngs)
+  const maxLng = Math.max(...lngs)
+  const minLat = Math.min(...lats)
+  const maxLat = Math.max(...lats)
+  
+  const padding = 50
+  const x = padding + ((longitude - minLng) / (maxLng - minLng)) * (canvasWidth.value - 2 * padding)
+  const y = padding + ((maxLat - latitude) / (maxLat - minLat)) * (canvasHeight.value - 2 * padding)
+  
+  return { x, y }
+}
+
+// 绘制散点图
+function drawScatterChart() {
+  const canvas = scatterCanvas.value
+  if (!canvas) return
+  
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  
+  // 清空画布
+  ctx.clearRect(0, 0, canvasWidth.value, canvasHeight.value)
+  
+  // 设置背景
+  ctx.fillStyle = '#f8fafc'
+  ctx.fillRect(0, 0, canvasWidth.value, canvasHeight.value)
+  
+  // 绘制网格
+  ctx.strokeStyle = '#e2e8f0'
+  ctx.lineWidth = 1
+  for (let i = 0; i <= 10; i++) {
+    const x = (canvasWidth.value / 10) * i
+    const y = (canvasHeight.value / 10) * i
+    ctx.beginPath()
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x, canvasHeight.value)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(0, y)
+    ctx.lineTo(canvasWidth.value, y)
+    ctx.stroke()
+  }
+  
+  // 绘制地点
+  props.locations.forEach((location, index) => {
+    const { x, y } = coordinateToCanvas(location.coordinates.longitude, location.coordinates.latitude)
     
-    // 渲染示例数据
-    renderSampleRoute()
-  }
-})
-
-// 组件卸载
-onUnmounted(() => {
-  if (performanceTimer) {
-    clearInterval(performanceTimer)
-  }
-})
-
-// 初始化渲染器
-function initRenderer() {
-  if (!canvas.value) return
-  
-  try {
-    visualRenderer.initCanvas(canvas.value)
+    // 绘制点
+    ctx.fillStyle = `hsl(${(index * 137.5) % 360}, 70%, 50%)`
+    ctx.beginPath()
+    ctx.arc(x, y, 8, 0, 2 * Math.PI)
+    ctx.fill()
     
-    // 设置优化选项
-    if (optimizationEnabled.value) {
-      visualRenderer.setOptimizationOptions({
-        enableLOD: true,
-        maxPoints: 1000,
-        simplificationTolerance: 2.0,
-        enableCaching: true,
-        batchSize: 50
-      })
-    }
-  } catch (error) {
-    console.error('Failed to initialize renderer:', error)
-  }
+    // 绘制边框
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    
+    // 绘制标签
+    ctx.fillStyle = '#1e293b'
+    ctx.font = '12px Arial'
+    ctx.textAlign = 'center'
+    ctx.fillText(location.name, x, y - 15)
+  })
 }
 
-// 更新样式
-function updateStyle() {
-  const style: StyleConfig = {
-    colorScheme: selectedColorScheme.value as any,
-    lineWidth: lineWidth.value,
-    fontSize: fontSize.value
+// 绘制连线图
+function drawNetworkChart() {
+  const canvas = networkCanvas.value
+  if (!canvas) return
+  
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  
+  // 清空画布
+  ctx.clearRect(0, 0, canvasWidth.value, canvasHeight.value)
+  
+  // 设置背景
+  ctx.fillStyle = '#f1f5f9'
+  ctx.fillRect(0, 0, canvasWidth.value, canvasHeight.value)
+  
+  // 绘制连线（按距离排序连接最近的点）
+  const points = props.locations.map(loc => ({
+    ...loc,
+    canvas: coordinateToCanvas(loc.coordinates.longitude, loc.coordinates.latitude)
+  }))
+  
+  // 绘制连线
+  ctx.strokeStyle = '#3b82f6'
+  ctx.lineWidth = 2
+  for (let i = 0; i < points.length - 1; i++) {
+    const current = points[i]
+    const next = points[i + 1]
+    
+    ctx.beginPath()
+    ctx.moveTo(current.canvas.x, current.canvas.y)
+    ctx.lineTo(next.canvas.x, next.canvas.y)
+    ctx.stroke()
   }
   
-  // 重新渲染
-  renderSampleRoute()
+  // 绘制节点
+  points.forEach((point, index) => {
+    ctx.fillStyle = '#1e40af'
+    ctx.beginPath()
+    ctx.arc(point.canvas.x, point.canvas.y, 10, 0, 2 * Math.PI)
+    ctx.fill()
+    
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 10px Arial'
+    ctx.textAlign = 'center'
+    ctx.fillText((index + 1).toString(), point.canvas.x, point.canvas.y + 3)
+  })
 }
 
-// 切换优化
-function toggleOptimization() {
-  optimizationEnabled.value = !optimizationEnabled.value
+// 绘制热力图
+function drawHeatmapChart() {
+  const canvas = heatmapCanvas.value
+  if (!canvas) return
   
-  if (optimizationEnabled.value) {
-    visualRenderer.autoOptimize()
-  } else {
-    visualRenderer.setOptimizationOptions({
-      enableLOD: false,
-      enableCaching: false
-    })
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  
+  // 清空画布
+  ctx.clearRect(0, 0, canvasWidth.value, canvasHeight.value)
+  
+  // 设置背景
+  ctx.fillStyle = '#0f172a'
+  ctx.fillRect(0, 0, canvasWidth.value, canvasHeight.value)
+  
+  // 创建热力效果
+  props.locations.forEach((location, index) => {
+    const { x, y } = coordinateToCanvas(location.coordinates.longitude, location.coordinates.latitude)
+    
+    // 创建径向渐变
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, 60)
+    const hue = (index * 60) % 360
+    gradient.addColorStop(0, `hsla(${hue}, 100%, 50%, 0.8)`)
+    gradient.addColorStop(0.5, `hsla(${hue}, 100%, 50%, 0.4)`)
+    gradient.addColorStop(1, `hsla(${hue}, 100%, 50%, 0)`)
+    
+    ctx.fillStyle = gradient
+    ctx.beginPath()
+    ctx.arc(x, y, 60, 0, 2 * Math.PI)
+    ctx.fill()
+  })
+  
+  // 绘制地点标记
+  props.locations.forEach((location) => {
+    const { x, y } = coordinateToCanvas(location.coordinates.longitude, location.coordinates.latitude)
+    
+    ctx.fillStyle = '#ffffff'
+    ctx.beginPath()
+    ctx.arc(x, y, 4, 0, 2 * Math.PI)
+    ctx.fill()
+  })
+}
+
+// 导出可视化图表
+function exportVisualization() {
+  let canvas: HTMLCanvasElement | undefined
+  
+  switch (selectedChartType.value) {
+    case 'scatter':
+      canvas = scatterCanvas.value
+      break
+    case 'network':
+      canvas = networkCanvas.value
+      break
+    case 'heatmap':
+      canvas = heatmapCanvas.value
+      break
   }
   
-  renderSampleRoute()
-}
-
-// 清空渲染器
-function clearRenderer() {
-  visualRenderer.clearCanvas()
-  visualRenderer.clearCache()
-  elementCount.value = 0
-}
-
-// 导出画布
-function exportCanvas() {
-  if (!canvas.value) return
+  if (!canvas) return
   
   const link = document.createElement('a')
-  link.download = `route-map-${Date.now()}.png`
-  link.href = canvas.value.toDataURL()
+  link.download = `地理可视化-${selectedChartType.value}-${Date.now()}.png`
+  link.href = canvas.toDataURL()
   link.click()
 }
 
-// 渲染示例路线
-async function renderSampleRoute() {
-  if (!canvas.value) return
-  
-  // 创建示例路线数据
-  const sampleRoute: RouteData = {
-    locations: [
-      {
-        name: '北京',
-        coordinates: { lat: 39.9042, lng: 116.4074 },
-        address: '北京市',
-        type: 'city'
-      },
-      {
-        name: '上海',
-        coordinates: { lat: 31.2304, lng: 121.4737 },
-        address: '上海市',
-        type: 'city'
-      },
-      {
-        name: '广州',
-        coordinates: { lat: 23.1291, lng: 113.2644 },
-        address: '广州市',
-        type: 'city'
-      }
-    ],
-    path: [
-      { x: 1.164, y: 0.399 },
-      { x: 1.200, y: 0.350 },
-      { x: 1.247, y: 0.312 },
-      { x: 1.136, y: 0.231 }
-    ],
-    bounds: {
-      north: 40,
-      south: 23,
-      east: 122,
-      west: 113
-    }
-  }
-  
-  const style: StyleConfig = {
-    colorScheme: selectedColorScheme.value as any,
-    lineWidth: lineWidth.value,
-    fontSize: fontSize.value
-  }
-  
-  try {
-    await visualRenderer.renderRouteMap(sampleRoute, style)
-    elementCount.value = sampleRoute.locations.length + sampleRoute.path.length
-  } catch (error) {
-    console.error('Failed to render route:', error)
+// 重新绘制当前图表
+function redrawCurrentChart() {
+  switch (selectedChartType.value) {
+    case 'scatter':
+      drawScatterChart()
+      break
+    case 'network':
+      drawNetworkChart()
+      break
+    case 'heatmap':
+      drawHeatmapChart()
+      break
   }
 }
 
-// 开始性能监控
-function startPerformanceMonitoring() {
-  performanceTimer = setInterval(() => {
-    const metrics = visualRenderer.getPerformanceMetrics()
-    if (metrics) {
-      performanceMetrics.value = metrics
-      recommendations.value = visualRenderer.getPerformanceRecommendations()
-    }
-  }, 1000) as any
-}
+// 监听数据变化
+watch(() => props.locations, () => {
+  redrawCurrentChart()
+}, { deep: true })
 
-// 鼠标事件处理
-function handleMouseDown(event: MouseEvent) {
-  isDragging.value = true
-  lastMousePos.value = { x: event.clientX, y: event.clientY }
-}
+watch(selectedChartType, () => {
+  setTimeout(redrawCurrentChart, 100)
+})
 
-function handleMouseMove(event: MouseEvent) {
-  if (!isDragging.value) return
-  
-  const deltaX = event.clientX - lastMousePos.value.x
-  const deltaY = event.clientY - lastMousePos.value.y
-  
-  panOffset.value.x += deltaX
-  panOffset.value.y += deltaY
-  
-  lastMousePos.value = { x: event.clientX, y: event.clientY }
-  
-  // 重新渲染
-  renderSampleRoute()
-}
-
-function handleMouseUp() {
-  isDragging.value = false
-}
-
-function handleWheel(event: WheelEvent) {
-  event.preventDefault()
-  
-  const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1
-  zoomLevel.value = Math.max(0.1, Math.min(5.0, zoomLevel.value * zoomFactor))
-  
-  // 重新渲染
-  renderSampleRoute()
-}
+// 组件挂载后初始化
+onMounted(() => {
+  setTimeout(redrawCurrentChart, 100)
+})
 </script>
 
 <style scoped>
-.visual-renderer {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background: #f5f5f5;
+.coordinate-visualizer {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
-.renderer-controls {
+.visualization-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  text-align: center;
+}
+
+.visualization-header h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.chart-controls {
   display: flex;
-  gap: 20px;
-  padding: 16px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  gap: 10px;
+  justify-content: center;
   flex-wrap: wrap;
 }
 
-.control-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.control-group label {
-  font-weight: 500;
-  color: #333;
-}
-
-.control-group select,
-.control-group input[type="range"] {
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.control-group button {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.control-group button:hover {
-  background: #f0f0f0;
-}
-
-.control-group button.active {
-  background: #007bff;
+.chart-type-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
-  border-color: #007bff;
-}
-
-.canvas-container {
-  flex: 1;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #fafafa;
-}
-
-canvas {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: white;
-  cursor: grab;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-canvas:active {
-  cursor: grabbing;
-}
-
-.performance-info {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  min-width: 200px;
-}
-
-.performance-info h4 {
-  margin: 0 0 12px 0;
-  color: #333;
-  font-size: 14px;
-}
-
-.metric {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 12px;
-}
-
-.recommendations {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #eee;
-}
-
-.recommendations h5 {
-  margin: 0 0 8px 0;
-  font-size: 12px;
-  color: #666;
-}
-
-.recommendations ul {
-  margin: 0;
-  padding-left: 16px;
-  font-size: 11px;
-  color: #666;
-}
-
-.status-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: 8px 16px;
-  background: #f8f9fa;
-  border-top: 1px solid #e0e0e0;
-  font-size: 12px;
-  color: #666;
-}
-
-.status-bar button {
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
+  border-radius: 20px;
   cursor: pointer;
-  font-size: 11px;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
 }
 
-.status-bar button:hover {
-  background: #f0f0f0;
+.chart-type-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.chart-type-btn.active {
+  background: rgba(255, 255, 255, 0.9);
+  color: #667eea;
+  font-weight: 600;
+}
+
+.chart-container {
+  padding: 20px;
+  text-align: center;
+}
+
+.visualization-canvas {
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: white;
+}
+
+.chart-info {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+.chart-info p {
+  margin: 5px 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.statistics-panel {
+  background: #f8fafc;
+  padding: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.statistics-panel h4 {
+  margin: 0 0 15px 0;
+  color: #1e293b;
+  font-size: 1.1rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.stat-item {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-label {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.stat-value {
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.export-section {
+  padding: 20px;
+  text-align: center;
+  border-top: 1px solid #e2e8f0;
+}
+
+.export-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.export-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+@media (max-width: 768px) {
+  .chart-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .visualization-canvas {
+    max-width: 100%;
+    height: auto;
+  }
 }
 </style>

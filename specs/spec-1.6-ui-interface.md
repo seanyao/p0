@@ -169,59 +169,106 @@ interface ExportShareProps {
 ## 技术实现
 
 ### 组件架构
-```typescript
-// 主应用组件
-const App: React.FC = () => {
-  const [appState, setAppState] = useState<AppState>('input')
-  const [routeData, setRouteData] = useState<RouteData>()
-  const [styleConfig, setStyleConfig] = useState<StyleConfig>(defaultStyle)
-  
-  return (
-    <div className="app-container">
-      <Header />
-      <LocationInput 
-        onGenerate={handleGenerate}
-        isLoading={appState === 'generating'}
+```vue
+<!-- 主应用组件 -->
+<template>
+  <div class="app-container">
+    <Header />
+    <LocationInput 
+      @generate="handleGenerate"
+      :is-loading="appState === 'generating'"
+    />
+    <RoutePreview 
+      :route-data="routeData"
+      :style-config="styleConfig"
+      :is-loading="appState === 'generating'"
+    />
+    <template v-if="routeData">
+      <StyleAdjuster 
+        :current-style="styleConfig"
+        @style-change="handleStyleChange"
       />
-      <RoutePreview 
-        routeData={routeData}
-        styleConfig={styleConfig}
-        isLoading={appState === 'generating'}
+      <ExportShare 
+        :route-data="routeData"
+        @export="handleExport"
+        @share="handleShare"
       />
-      {routeData && (
-        <>
-          <StyleAdjuster 
-            currentStyle={styleConfig}
-            onStyleChange={setStyleConfig}
-          />
-          <ExportShare 
-            routeData={routeData}
-            onExport={handleExport}
-            onShare={handleShare}
-          />
-        </>
-      )}
-    </div>
-  )
+    </template>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive } from 'vue'
+import type { AppState, RouteData, StyleConfig } from '@/types'
+
+const appState = ref<AppState>('input')
+const routeData = ref<RouteData>()
+const styleConfig = reactive<StyleConfig>(defaultStyle)
+
+const handleGenerate = async (input: string) => {
+  // 处理路线生成
 }
+
+const handleStyleChange = (newStyle: StyleConfig) => {
+  Object.assign(styleConfig, newStyle)
+}
+
+const handleExport = (format: string) => {
+  // 处理导出
+}
+
+const handleShare = (platform: string) => {
+  // 处理分享
+}
+</script>
 ```
 
 ### 状态管理
 ```typescript
-type AppState = 'input' | 'generating' | 'preview' | 'exporting'
+// 使用Pinia进行状态管理
+import { defineStore } from 'pinia'
 
-interface AppContext {
-  state: AppState
-  routeData?: RouteData
-  styleConfig: StyleConfig
-  error?: string
+export const useAppStore = defineStore('app', {
+  state: () => ({
+    appState: 'input' as AppState,
+    routeData: null as RouteData | null,
+    styleConfig: { ...defaultStyle } as StyleConfig,
+    error: null as string | null
+  }),
   
-  // Actions
-  generateRoute: (input: string) => Promise<void>
-  updateStyle: (config: StyleConfig) => void
-  exportImage: (format: ExportFormat) => Promise<void>
-  shareToSocial: (platform: SocialPlatform) => Promise<void>
-}
+  actions: {
+    async generateRoute(input: string) {
+      this.appState = 'generating'
+      try {
+        const result = await routeService.generate(input)
+        this.routeData = result
+        this.appState = 'preview'
+      } catch (error) {
+        this.error = error.message
+        this.appState = 'input'
+      }
+    },
+    
+    updateStyle(config: StyleConfig) {
+      this.styleConfig = { ...this.styleConfig, ...config }
+    },
+    
+    async exportImage(format: ExportFormat) {
+      this.appState = 'exporting'
+      try {
+        await exportService.export(this.routeData, format)
+      } finally {
+        this.appState = 'preview'
+      }
+    },
+    
+    async shareToSocial(platform: SocialPlatform) {
+      await shareService.share(this.routeData, platform)
+    }
+  }
+})
+
+type AppState = 'input' | 'generating' | 'preview' | 'exporting'
 ```
 
 ### 响应式实现
@@ -340,7 +387,7 @@ interface AppContext {
 
 ## 依赖关系
 
-- **前置条件**: 所有功能模块(spec-1.1到1.5)完成
+- **前置条件**: 所有功能模块(spec-1.1到1.5, spec-1.7)完成
 - **阻塞因素**: 无
 - **后续任务**: 整体测试和优化
 

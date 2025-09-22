@@ -1,0 +1,22 @@
+# LLM服务配置文件模板
+# 复制此文件为 llm_config.yaml 并填入真实的配置信息
+
+llm:
+  api_key: "your-api-key-here"
+  api_url: "https://your-llm-api-endpoint.com/v1"
+  model: "azure/gpt-4o-mini"
+  max_tokens: 1000
+  temperature: 0.3
+  timeout: 30
+
+# 路线规划相关配置
+route_planning:
+  max_locations: 20
+  default_style: "artistic"
+  cache_ttl: 3600  # 缓存时间（秒）
+
+# 地理服务配置
+geo_service:
+  provider: "amap"  # 高德地图
+  cache_enabled: true
+  batch_size: 10

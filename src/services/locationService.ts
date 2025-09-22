@@ -47,13 +47,27 @@ export const locationService = {
       // 转换后端数据格式为前端期望格式
       if (backendData.success && backendData.data?.coordinates?.length > 0) {
         const coord = backendData.data.coordinates[0]
+        
+        // 验证坐标数据
+        const lng = parseFloat(coord.lng)
+        const lat = parseFloat(coord.lat)
+        
+        if (isNaN(lng) || isNaN(lat)) {
+          console.error('Invalid coordinates received from backend:', coord)
+          return {
+            success: false,
+            error: '后端返回的坐标数据无效',
+            suggestions: backendData.data.suggestions || []
+          }
+        }
+        
         return {
           success: true,
           location: {
             name: coord.name || name,
             coordinates: {
-              longitude: coord.lng,
-              latitude: coord.lat
+              longitude: lng,
+              latitude: lat
             },
             level: coord.level,
             address: coord.name
@@ -83,24 +97,41 @@ export const locationService = {
       
       // 转换批量解析结果格式
       if (backendData.success && backendData.data?.coordinates) {
-        const results: ParseResult[] = backendData.data.coordinates.map((coord: any, index: number) => ({
-          success: true,
-          location: {
-            name: coord.name || `位置${index + 1}`,
-            coordinates: {
-              longitude: coord.lng,
-              latitude: coord.lat
-            },
-            level: coord.level,
-            address: coord.name
+        const results: ParseResult[] = backendData.data.coordinates.map((coord: any, index: number) => {
+          // 验证坐标数据
+          const lng = parseFloat(coord.lng)
+          const lat = parseFloat(coord.lat)
+          
+          if (isNaN(lng) || isNaN(lat)) {
+            console.error(`Invalid coordinates for location ${index + 1}:`, coord)
+            return {
+              success: false,
+              error: `位置${index + 1}的坐标数据无效`
+            }
           }
-        }))
+          
+          return {
+            success: true,
+            location: {
+              name: coord.name || `位置${index + 1}`,
+              coordinates: {
+                longitude: lng,
+                latitude: lat
+              },
+              level: coord.level,
+              address: coord.name
+            }
+          }
+        })
+        
+        const successfulResults = results.filter(r => r.success)
+        const failedResults = results.filter(r => !r.success)
         
         return {
           summary: {
             total: results.length,
-            successful: results.length,
-            failed: 0
+            successful: successfulResults.length,
+            failed: failedResults.length
           },
           results
         }
