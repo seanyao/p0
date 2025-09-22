@@ -7,7 +7,7 @@ import type { ParseResult, BatchParseResult } from '../types/location'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: '/api/v1/ai',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -41,44 +41,44 @@ export const locationService = {
   // 解析单个地名
   async parseLocation(name: string): Promise<ParseResult> {
     try {
-      const response = await api.post('/parse', { input: name })
+      const response = await api.post('/generate-route', { user_input: name })
       const backendData = response.data
       
       // 转换后端数据格式为前端期望格式
-      if (backendData.success && backendData.data?.coordinates?.length > 0) {
-        const coord = backendData.data.coordinates[0]
+      if (backendData.success && backendData.locations?.length > 0) {
+        const location = backendData.locations[0]
         
         // 验证坐标数据
-        const lng = parseFloat(coord.lng)
-        const lat = parseFloat(coord.lat)
+        const lng = parseFloat(location.coordinates[0])
+        const lat = parseFloat(location.coordinates[1])
         
         if (isNaN(lng) || isNaN(lat)) {
-          console.error('Invalid coordinates received from backend:', coord)
+          console.error('Invalid coordinates received from backend:', location)
           return {
             success: false,
             error: '后端返回的坐标数据无效',
-            suggestions: backendData.data.suggestions || []
+            suggestions: []
           }
         }
         
         return {
           success: true,
           location: {
-            name: coord.name || name,
+            name: location.name || name,
             coordinates: {
               longitude: lng,
               latitude: lat
             },
-            level: coord.level,
-            address: coord.name
+            level: location.type,
+            address: location.display_name
           },
-          suggestions: backendData.data.suggestions || []
+          suggestions: []
         }
       } else {
         return {
           success: false,
           error: backendData.message || '解析失败',
-          suggestions: backendData.data?.suggestions || []
+          suggestions: []
         }
       }
     } catch (error) {
@@ -92,46 +92,46 @@ export const locationService = {
   // 批量解析地名
   async parseBatch(input: string): Promise<BatchParseResult> {
     try {
-      const response = await api.post('/parse', { input })
+      const response = await api.post('/generate-route', { user_input: input })
       const backendData = response.data
       
       // 转换批量解析结果格式
-      if (backendData.success && backendData.data?.coordinates) {
-        const results: ParseResult[] = backendData.data.coordinates.map((coord: any, index: number) => {
-          // 验证坐标数据
-          const lng = parseFloat(coord.lng)
-          const lat = parseFloat(coord.lat)
+      if (backendData.success && backendData.locations) {
+        const results: ParseResult[] = backendData.locations.map((location: any, index: number) => {
+          const lng = parseFloat(location.coordinates[0])
+          const lat = parseFloat(location.coordinates[1])
           
           if (isNaN(lng) || isNaN(lat)) {
-            console.error(`Invalid coordinates for location ${index + 1}:`, coord)
             return {
               success: false,
-              error: `位置${index + 1}的坐标数据无效`
+              error: `第${index + 1}个地点坐标无效`,
+              suggestions: []
             }
           }
           
           return {
             success: true,
             location: {
-              name: coord.name || `位置${index + 1}`,
+              name: location.name,
               coordinates: {
                 longitude: lng,
                 latitude: lat
               },
-              level: coord.level,
-              address: coord.name
-            }
+              level: location.type,
+              address: location.display_name
+            },
+            suggestions: []
           }
         })
         
-        const successfulResults = results.filter(r => r.success)
-        const failedResults = results.filter(r => !r.success)
+        const successful = results.filter(r => r.success).length
+        const failed = results.length - successful
         
         return {
           summary: {
             total: results.length,
-            successful: successfulResults.length,
-            failed: failedResults.length
+            successful,
+            failed
           },
           results
         }
@@ -140,12 +140,9 @@ export const locationService = {
           summary: {
             total: 0,
             successful: 0,
-            failed: 1
+            failed: 0
           },
-          results: [{
-            success: false,
-            error: backendData.message || '批量解析失败'
-          }]
+          results: []
         }
       }
     } catch (error) {
@@ -163,7 +160,7 @@ export const locationService = {
       return response.data
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        throw new Error(error.response?.data?.error || '服务不可用')
+        throw new Error(error.response?.data?.error || '健康检查失败')
       }
       throw error
     }

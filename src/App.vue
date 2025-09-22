@@ -1,264 +1,447 @@
 <template>
   <div id="app">
-    <header class="app-header">
-      <h1>🤖 AI地理可视化工具</h1>
-      <p>输入地名，AI智能生成精美的地理坐标图表</p>
-    </header>
+    <router-view v-if="$route.path !== '/'" />
+    <div v-else>
+      <header class="app-header">
+        <div class="header-content">
+          <div class="logo-section">
+            <div class="logo">✈️</div>
+            <div class="title-section">
+              <h1 class="main-title">AI旅行路线图生成器</h1>
+              <p class="subtitle">一键生成Instagram级艺术化旅行路线图</p>
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="style-btn">🎨 风格</button>
+            <button class="share-btn">📤 分享</button>
+          </div>
+        </div>
+      </header>
 
-    <main class="app-main">
-      <!-- 简化的输入区域 -->
-      <div class="input-section">
-        <LocationParser
-          :placeholder="'输入地名，如：北京、上海、深圳、广州'"
-          :show-history="false"
-          :show-batch-mode="true"
-          @location-parsed="handleLocationParsed"
-          @error="handleError"
-        />
-      </div>
+      <main class="app-main">
+        <!-- 输入区域 -->
+        <section class="input-section">
+          <div class="input-container">
+            <h2 class="section-title">✨ 描述你的旅行</h2>
+            <p class="section-desc">用自然语言描述你的旅行计划，AI会为你生成艺术化路线图</p>
+            
+            <div class="input-examples">
+              <span class="example-tag" @click="setExample('我想去日本看樱花，从东京到京都到大阪')">🌸 日本樱花之旅</span>
+              <span class="example-tag" @click="setExample('欧洲文艺复兴艺术之旅，巴黎-佛罗伦萨-罗马')">🎨 欧洲艺术之旅</span>
+              <span class="example-tag" @click="setExample('中国古都文化游，北京-西安-洛阳')">🏛️ 中国古都游</span>
+            </div>
+            
+            <LocationParser 
+              @location-parsed="handleLocationParsed" 
+              @error="handleError"
+              :placeholder="'例如：我想去日本看樱花，从东京到京都...'"
+            />
+          </div>
+        </section>
 
-      <!-- AI处理状态 -->
-      <div v-if="isProcessing" class="ai-processing">
-        <div class="processing-animation">🤖</div>
-        <p>AI正在智能解析地理坐标...</p>
-      </div>
+        <!-- 结果展示区域 -->
+        <section class="results-section" v-if="locations.length > 0 || isProcessing">
+          <!-- AI处理状态 -->
+          <div v-if="isProcessing" class="ai-processing">
+            <div class="processing-animation">
+              <div class="processing-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <p>🎨 AI正在为你创作艺术化路线图...</p>
+            </div>
+          </div>
 
-      <!-- 可视化输出区域 -->
-      <div v-if="locations.length > 0 && !isProcessing" class="output-section">
-        <h2>📊 AI生成的地理坐标可视化</h2>
-        
-        <!-- 坐标数据展示 -->
-        <div class="coordinates-display">
-          <h3>解析的坐标数据</h3>
-          <div class="coordinate-grid">
-            <div 
-              v-for="(location, index) in locations" 
-              :key="index"
-              class="coordinate-item"
-            >
-              <div class="location-name">{{ location.name }}</div>
-              <div class="coordinates">
-                <span class="coord-label">经度:</span> {{ parseFloat(location.longitude).toFixed(6) }}°
-                <br>
-                <span class="coord-label">纬度:</span> {{ parseFloat(location.latitude).toFixed(6) }}°
+          <!-- 艺术化路线图展示 -->
+          <div v-else class="route-canvas-container">
+            <div class="canvas-header">
+              <h3>🗺️ 你的专属旅行路线图</h3>
+              <div class="canvas-actions">
+                <select class="style-selector">
+                  <option value="watercolor">🎨 水彩风格</option>
+                  <option value="minimalist">✨ 极简风格</option>
+                  <option value="vintage">📸 复古风格</option>
+                  <option value="modern">🌟 现代风格</option>
+                </select>
+                <button class="export-btn">💾 导出</button>
+                <button class="share-instagram">📱 分享到Instagram</button>
+              </div>
+            </div>
+            
+            <!-- 路线图画布 -->
+            <div class="route-canvas">
+              <VisualRenderer 
+                :locations="locations" 
+                :routes="routes"
+                :style="selectedStyle"
+              />
+            </div>
+            
+            <!-- 路线信息卡片 -->
+            <div class="route-info-cards">
+              <div v-for="(location, index) in locations" :key="index" class="location-card">
+                <div class="card-number">{{ index + 1 }}</div>
+                <div class="card-content">
+                  <h4>{{ location.name }}</h4>
+                  <p class="coordinates">{{ location.latitude.toFixed(4) }}, {{ location.longitude.toFixed(4) }}</p>
+                  <p class="address">{{ location.formatted_address }}</p>
+                </div>
+                <div class="card-actions">
+                  <button class="view-on-map">🗺️</button>
+                  <button class="add-note">📝</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- 可视化图表 -->
-        <VisualRenderer 
-          :locations="locations"
-          :routes="routes"
-        />
+        </section>
+      </main>
+      
+      <!-- 添加测试路由链接 -->
+      <div class="test-link" style="text-align: center; margin: 20px;">
+        <router-link to="/test-route" class="test-btn">
+          🧪 查看真实路线测试案例
+        </router-link>
       </div>
-    </main>
 
-    <footer class="app-footer">
-      <p>
-        🤖 AI驱动 · 智能地名解析 · 精确坐标可视化 · 
-        <span class="tech-stack">Vue3 + TypeScript + 高德API</span>
-      </p>
-    </footer>
+      <footer class="app-footer">
+        <p>
+          🤖 AI驱动 · 智能地名解析 · 精确坐标可视化 · 
+          <span class="tech-stack">Vue3 + TypeScript + 高德API</span>
+        </p>
+      </footer>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-/**
- * AI地理可视化工具 - 主应用组件
- */
-
 import { ref } from 'vue'
-import LocationParser from './components/LocationParser.vue'
-import VisualRenderer from './components/VisualRenderer.vue'
+import { useRouter } from 'vue-router'
+import Header from '@/components/Header.vue'
+import LocationInput from '@/components/LocationInput.vue'
+import VisualRenderer from '@/components/VisualRenderer.vue'
+import type { LocationInfo } from '@/types/location'
 
-// 响应式数据
-const locations = ref<any[]>([])
-const routes = ref<any[]>([])
-const isProcessing = ref(false)
+const router = useRouter()
+const locations = ref<LocationInfo[]>([])
 
-const handleLocationParsed = (result: any) => {
-  console.log('AI地名解析结果:', result)
-  
-  // 显示AI处理状态
-  isProcessing.value = true
-  
-  // 模拟AI处理时间
-  setTimeout(() => {
-    // 如果是单个地点解析结果
-    if (result.success && result.location) {
-      const location = {
-        name: result.location.name,
-        longitude: result.location.coordinates.longitude,
-        latitude: result.location.coordinates.latitude,
-        formatted_address: result.location.address
-      }
-      locations.value.push(location)
-    }
-    
-    // 如果是批量解析结果
-    if (result.summary && result.results) {
-      const successfulResults = result.results.filter((item: any) => item.success && item.location)
-      successfulResults.forEach((item: any) => {
-        const location = {
-          name: item.location.name,
-          longitude: item.location.coordinates.longitude,
-          latitude: item.location.coordinates.latitude,
-          formatted_address: item.location.address
-        }
-        locations.value.push(location)
-      })
-    }
-    
-    // 生成路线（如果有多个地点）
-    if (locations.value.length > 1) {
-      generateRoutes()
-    }
-    
-    // 完成AI处理
-    isProcessing.value = false
-  }, 1500) // 1.5秒的AI处理动画
+const handleLocationsParsed = (parsedLocations: LocationInfo[]) => {
+  locations.value = parsedLocations
 }
 
-const handleError = (error: string) => {
-  console.error('AI解析错误:', error)
-  isProcessing.value = false
-}
-
-const generateRoutes = () => {
-  // 智能路线生成：连接相邻的地点
-  const newRoutes = []
-  for (let i = 0; i < locations.value.length - 1; i++) {
-    newRoutes.push({
-      from: locations.value[i],
-      to: locations.value[i + 1],
-      id: `route-${i}`
-    })
-  }
-  routes.value = newRoutes
+const handleExportComplete = () => {
+  console.log('Export completed')
 }
 </script>
 
 <style scoped>
-.app-header {
-  text-align: center;
-  padding: 3rem 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  margin-bottom: 2rem;
+/* 全局样式 */
+#app {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.app-header h1 {
-  margin: 0 0 0.5rem 0;
-  font-size: 2.8rem;
+/* 头部样式 */
+.app-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2rem 1rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logo {
+  font-size: 3rem;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.main-title {
+  margin: 0;
+  font-size: 2.5rem;
   font-weight: 700;
   text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
-.app-header p {
-  margin: 0;
-  font-size: 1.2rem;
+.subtitle {
+  margin: 0.5rem 0 0 0;
+  font-size: 1.1rem;
   opacity: 0.9;
 }
 
-.app-main {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-.input-section {
-  margin-bottom: 2rem;
-}
-
-.ai-processing {
-  text-align: center;
-  padding: 3rem 1rem;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  border-radius: 12px;
-  color: white;
-  margin: 2rem 0;
-}
-
-.processing-animation {
-  font-size: 4rem;
-  animation: bounce 1s infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {
-    transform: translateY(0);
-  }
-  40% {
-    transform: translateY(-10px);
-  }
-  60% {
-    transform: translateY(-5px);
-  }
-}
-
-.ai-processing p {
-  font-size: 1.3rem;
-  margin: 0;
-  font-weight: 500;
-}
-
-.output-section {
-  margin-top: 3rem;
-}
-
-.output-section h2 {
-  color: #333;
-  font-size: 2rem;
-  margin-bottom: 2rem;
-  text-align: center;
-}
-
-.coordinates-display {
-  background: #f8f9fa;
-  border-radius: 12px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-}
-
-.coordinates-display h3 {
-  color: #495057;
-  margin-bottom: 1.5rem;
-  font-size: 1.4rem;
-}
-
-.coordinate-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+.header-actions {
+  display: flex;
   gap: 1rem;
 }
 
-.coordinate-item {
-  background: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  border-left: 4px solid #667eea;
+.style-btn, .share-btn {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border-radius: 25px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
 }
 
-.location-name {
+.style-btn:hover, .share-btn:hover {
+  background: rgba(255,255,255,0.2);
+  transform: translateY(-2px);
+}
+
+/* 主内容区域 */
+.app-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* 输入区域 */
+.input-section {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.section-desc {
+  margin: 0 0 1.5rem 0;
+  color: #718096;
+  font-size: 1.1rem;
+}
+
+.input-examples {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.example-tag {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.example-tag:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* 结果展示区域 */
+.results-section {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+/* AI处理动画 */
+.ai-processing {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.processing-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.processing-dots span {
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  animation: bounce 1.4s ease-in-out infinite both;
+}
+
+.processing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.processing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+.ai-processing p {
   font-size: 1.2rem;
+  color: #666;
+  margin: 0;
+}
+
+/* 画布区域 */
+.canvas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f7fafc;
+}
+
+.canvas-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.canvas-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.style-selector {
+  padding: 0.5rem 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  background: white;
   font-weight: 600;
-  color: #333;
-  margin-bottom: 0.8rem;
+  cursor: pointer;
+}
+
+.export-btn, .share-instagram {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.export-btn {
+  background: #48bb78;
+  color: white;
+}
+
+.share-instagram {
+  background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);
+  color: white;
+}
+
+.export-btn:hover, .share-instagram:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* 路线图画布 */
+.route-canvas {
+  background: #f8fafc;
+  border-radius: 15px;
+  min-height: 400px;
+  margin-bottom: 2rem;
+  border: 2px solid #e2e8f0;
+}
+
+/* 路线信息卡片 */
+.route-info-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.location-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-radius: 15px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+}
+
+.location-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.card-number {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.card-content {
+  flex: 1;
+}
+
+.card-content h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2d3748;
 }
 
 .coordinates {
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 0.95rem;
-  color: #666;
-  line-height: 1.6;
+  margin: 0.25rem 0;
+  font-family: 'Monaco', monospace;
+  color: #4a5568;
+  font-size: 0.9rem;
 }
 
-.coord-label {
-  font-weight: 600;
-  color: #495057;
+.address {
+  margin: 0.25rem 0 0 0;
+  color: #718096;
+  font-size: 0.9rem;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.view-on-map, .add-note {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.view-on-map:hover, .add-note:hover {
+  background: #cbd5e0;
+  transform: scale(1.1);
 }
 
 .app-footer {
@@ -272,5 +455,36 @@ const generateRoutes = () => {
 .tech-stack {
   color: #667eea;
   font-weight: 500;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .main-title {
+    font-size: 2rem;
+  }
+  
+  .canvas-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .canvas-actions {
+    justify-content: center;
+  }
+  
+  .input-examples {
+    justify-content: center;
+  }
+  
+  .route-info-cards {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
