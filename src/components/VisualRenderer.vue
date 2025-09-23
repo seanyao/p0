@@ -226,8 +226,124 @@ function drawArtisticRoute() {
     drawRoutePath(ctx, styleConfig)
   }
   
-  // 绘制地点标记
+  // 绘制主要内容
+  drawBackground(ctx, styleConfig)
+  drawRoutePath(ctx, styleConfig)
   drawLocationMarkers(ctx, styleConfig)
+  
+  // 添加图例和信息面板 - 模仿参考图片的信息展示
+  const drawLegend = () => {
+    const legendX = 20
+    const legendY = canvasHeight.value - 150
+    const legendWidth = 200
+    const legendHeight = 120
+    
+    // 图例背景
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
+    ctx.strokeStyle = '#2E86C1'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.roundRect(legendX, legendY, legendWidth, legendHeight, 10)
+    ctx.fill()
+    ctx.stroke()
+    
+    // 图例标题
+    ctx.fillStyle = '#2E86C1'
+    ctx.font = 'bold 16px Arial'
+    ctx.textAlign = 'left'
+    ctx.fillText('图例', legendX + 15, legendY + 25)
+    
+    // 路线说明
+    let itemY = legendY + 45
+    
+    // 起点标识
+    ctx.fillStyle = '#E74C3C'
+    ctx.beginPath()
+    ctx.arc(legendX + 25, itemY, 8, 0, 2 * Math.PI)
+    ctx.fill()
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = 'bold 12px Arial'
+    ctx.textAlign = 'center'
+    ctx.fillText('A', legendX + 25, itemY + 3)
+    
+    ctx.fillStyle = '#333333'
+    ctx.font = '12px Arial'
+    ctx.textAlign = 'left'
+    ctx.fillText('起点', legendX + 45, itemY + 4)
+    
+    // 终点标识
+    itemY += 20
+    ctx.fillStyle = '#27AE60'
+    ctx.beginPath()
+    ctx.arc(legendX + 25, itemY, 8, 0, 2 * Math.PI)
+    ctx.fill()
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = 'bold 12px Arial'
+    ctx.textAlign = 'center'
+    ctx.fillText('B', legendX + 25, itemY + 3)
+    
+    ctx.fillStyle = '#333333'
+    ctx.font = '12px Arial'
+    ctx.textAlign = 'left'
+    ctx.fillText('终点', legendX + 45, itemY + 4)
+    
+    // 路线标识
+    itemY += 20
+    ctx.strokeStyle = '#2E86C1'
+    ctx.lineWidth = 4
+    ctx.beginPath()
+    ctx.moveTo(legendX + 15, itemY)
+    ctx.lineTo(legendX + 35, itemY)
+    ctx.stroke()
+    
+    ctx.fillStyle = '#333333'
+    ctx.font = '12px Arial'
+    ctx.textAlign = 'left'
+    ctx.fillText('旅游路线', legendX + 45, itemY + 4)
+  }
+  
+  // 添加统计信息面板
+  const drawStatsPanel = () => {
+    const panelX = canvasWidth.value - 220
+    const panelY = canvasHeight.value - 120
+    const panelWidth = 200
+    const panelHeight = 100
+    
+    // 统计面板背景
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
+    ctx.strokeStyle = '#2E86C1'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 10)
+    ctx.fill()
+    ctx.stroke()
+    
+    // 统计标题
+    ctx.fillStyle = '#2E86C1'
+    ctx.font = 'bold 16px Arial'
+    ctx.textAlign = 'left'
+    ctx.fillText('路线统计', panelX + 15, panelY + 25)
+    
+    // 统计信息
+    ctx.fillStyle = '#333333'
+    ctx.font = '12px Arial'
+    ctx.fillText(`总站点: ${props.locations.length}`, panelX + 15, panelY + 45)
+    
+    // 计算总距离（简化计算）
+    let totalDistance = 0
+    for (let i = 0; i < props.locations.length - 1; i++) {
+      const start = coordinateToCanvas(props.locations[i].coordinates.longitude, props.locations[i].coordinates.latitude)
+      const end = coordinateToCanvas(props.locations[i + 1].coordinates.longitude, props.locations[i + 1].coordinates.latitude)
+      totalDistance += Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2)) * 0.1
+    }
+    
+    ctx.fillText(`预估距离: ${totalDistance.toFixed(0)}km`, panelX + 15, panelY + 65)
+    ctx.fillText(`生成时间: ${new Date().toLocaleDateString()}`, panelX + 15, panelY + 85)
+  }
+  
+  // 绘制图例和统计面板
+  drawLegend()
+  drawStatsPanel()
 }
 
 function getStyleConfig(style: string) {
@@ -269,20 +385,102 @@ function getStyleConfig(style: string) {
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, config: any) {
-  ctx.fillStyle = config.backgroundColor
+  // 绘制专业地图背景 - 模仿参考图片的浅色地理背景
+  const gradient = ctx.createLinearGradient(0, 0, canvasWidth.value, canvasHeight.value)
+  gradient.addColorStop(0, '#F8F9FA')    // 浅灰白色
+  gradient.addColorStop(0.5, '#E9ECEF')  // 中性灰色
+  gradient.addColorStop(1, '#DEE2E6')    // 稍深灰色
+  
+  ctx.fillStyle = gradient
   ctx.fillRect(0, 0, canvasWidth.value, canvasHeight.value)
+  
+  // 添加地理网格线 - 模仿专业地图的网格效果
+  ctx.strokeStyle = 'rgba(108, 117, 125, 0.1)'
+  ctx.lineWidth = 1
+  ctx.setLineDash([5, 5])
+  
+  const gridSize = 50
+  
+  // 绘制垂直网格线
+  for (let x = 0; x < canvasWidth.value; x += gridSize) {
+    ctx.beginPath()
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x, canvasHeight.value)
+    ctx.stroke()
+  }
+  
+  // 绘制水平网格线
+  for (let y = 0; y < canvasHeight.value; y += gridSize) {
+    ctx.beginPath()
+    ctx.moveTo(0, y)
+    ctx.lineTo(canvasWidth.value, y)
+    ctx.stroke()
+  }
+  
+  // 重置线条样式
+  ctx.setLineDash([])
+  
+  // 添加标题区域背景
+  const titleHeight = 80
+  const titleGradient = ctx.createLinearGradient(0, 0, 0, titleHeight)
+  titleGradient.addColorStop(0, 'rgba(46, 134, 193, 0.9)')
+  titleGradient.addColorStop(1, 'rgba(46, 134, 193, 0.7)')
+  
+  ctx.fillStyle = titleGradient
+  ctx.fillRect(0, 0, canvasWidth.value, titleHeight)
+  
+  // 绘制标题
+  ctx.fillStyle = '#FFFFFF'
+  ctx.font = 'bold 24px Arial'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('旅游路线图', canvasWidth.value / 2, titleHeight / 2)
+  
+  // 添加指北针
+  const compassSize = 40
+  const compassX = canvasWidth.value - compassSize - 20
+  const compassY = titleHeight + 30
+  
+  // 指北针背景圆
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+  ctx.strokeStyle = '#2E86C1'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.arc(compassX, compassY, compassSize / 2, 0, 2 * Math.PI)
+  ctx.fill()
+  ctx.stroke()
+  
+  // 指北针箭头
+  ctx.fillStyle = '#E74C3C'
+  ctx.beginPath()
+  ctx.moveTo(compassX, compassY - compassSize / 2 + 5)
+  ctx.lineTo(compassX - 8, compassY + 5)
+  ctx.lineTo(compassX + 8, compassY + 5)
+  ctx.closePath()
+  ctx.fill()
+  
+  // 指北针文字
+  ctx.fillStyle = '#2E86C1'
+  ctx.font = 'bold 12px Arial'
+  ctx.textAlign = 'center'
+  ctx.fillText('N', compassX, compassY - compassSize / 2 - 10)
 }
 
 function drawRoutePath(ctx: CanvasRenderingContext2D, config: any) {
-  ctx.strokeStyle = config.pathColor
-  ctx.lineWidth = config.pathWidth
+  // 绘制路线 - 模仿参考图片的蓝色专业风格
+  if (props.locations.length < 2) return
+  
+  // 主路线 - 使用蓝色粗线条
+  ctx.strokeStyle = '#2E86C1'  // 专业蓝色
+  ctx.lineWidth = 6
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   
-  if (config.shadowBlur > 0) {
-    ctx.shadowColor = config.pathColor
-    ctx.shadowBlur = config.shadowBlur
-  }
+  // 绘制路线阴影效果
+  ctx.shadowColor = 'rgba(46, 134, 193, 0.3)'
+  ctx.shadowBlur = 8
+  ctx.shadowOffsetX = 2
+  ctx.shadowOffsetY = 2
   
   ctx.beginPath()
   props.locations.forEach((location, index) => {
@@ -295,40 +493,116 @@ function drawRoutePath(ctx: CanvasRenderingContext2D, config: any) {
   })
   ctx.stroke()
   
-  // 重置阴影
+  // 清除阴影
+  ctx.shadowColor = 'transparent'
   ctx.shadowBlur = 0
+  ctx.shadowOffsetX = 0
+  ctx.shadowOffsetY = 0
+  
+  // 绘制路线段标识
+  for (let i = 0; i < props.locations.length - 1; i++) {
+    const start = coordinateToCanvas(props.locations[i].coordinates.longitude, props.locations[i].coordinates.latitude)
+    const end = coordinateToCanvas(props.locations[i + 1].coordinates.longitude, props.locations[i + 1].coordinates.latitude)
+    const midX = (start.x + end.x) / 2
+    const midY = (start.y + end.y) / 2
+    
+    // 计算距离（简化计算）
+    const distance = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2)) * 0.1
+    
+    // 绘制距离标签背景
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.strokeStyle = '#2E86C1'
+    ctx.lineWidth = 1
+    const text = `${distance.toFixed(0)}km`
+    const textWidth = ctx.measureText(text).width
+    const padding = 8
+    
+    ctx.fillRect(midX - textWidth/2 - padding, midY - 12, textWidth + padding*2, 20)
+    ctx.strokeRect(midX - textWidth/2 - padding, midY - 12, textWidth + padding*2, 20)
+    
+    // 绘制距离文字
+    ctx.fillStyle = '#2E86C1'
+    ctx.font = 'bold 12px Arial'
+    ctx.textAlign = 'center'
+    ctx.fillText(text, midX, midY + 3)
+  }
 }
 
 function drawLocationMarkers(ctx: CanvasRenderingContext2D, config: any) {
   props.locations.forEach((location, index) => {
     const { x, y } = coordinateToCanvas(location.coordinates.longitude, location.coordinates.latitude)
     const isActive = index === activeLocationIndex.value
-    const markerSize = isActive ? config.markerSize * 1.5 : config.markerSize
     
-    // 绘制标记点
-    ctx.fillStyle = config.markerColors[index % config.markerColors.length]
+    // 绘制地点标记 - 模仿参考图片的专业样式
+    const isStart = index === 0
+    const isEnd = index === props.locations.length - 1
+    
+    // 标记圆圈
+    ctx.fillStyle = isStart ? '#E74C3C' : isEnd ? '#27AE60' : '#2E86C1'  // 起点红色，终点绿色，中间蓝色
+    ctx.strokeStyle = '#FFFFFF'
+    ctx.lineWidth = 3
+    
+    // 绘制外圈阴影
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)'
+    ctx.shadowBlur = 6
+    ctx.shadowOffsetX = 2
+    ctx.shadowOffsetY = 2
+    
     ctx.beginPath()
-    ctx.arc(x, y, markerSize, 0, 2 * Math.PI)
+    ctx.arc(x, y, 12, 0, 2 * Math.PI)
     ctx.fill()
-    
-    // 绘制边框
-    ctx.strokeStyle = '#ffffff'
-    ctx.lineWidth = 2
     ctx.stroke()
     
-    // 绘制序号
-    ctx.fillStyle = '#ffffff'
-    ctx.font = `bold ${markerSize}px Arial`
+    // 清除阴影
+    ctx.shadowColor = 'transparent'
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    
+    // 绘制标记字母
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = 'bold 14px Arial'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText((index + 1).toString(), x, y)
+    const label = isStart ? 'A' : isEnd ? 'B' : String.fromCharCode(65 + index)
+    ctx.fillText(label, x, y)
+    
+    // 绘制地点名称标签 - 专业样式
+    const labelY = y - 25
+    const labelText = location.name
+    ctx.font = 'bold 13px Arial'
+    const textWidth = ctx.measureText(labelText).width
+    const padding = 10
+    
+    // 标签背景
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
+    ctx.strokeStyle = isStart ? '#E74C3C' : isEnd ? '#27AE60' : '#2E86C1'
+    ctx.lineWidth = 2
+    
+    const rectX = x - textWidth/2 - padding
+    const rectY = labelY - 10
+    const rectWidth = textWidth + padding * 2
+    const rectHeight = 20
+    
+    // 绘制圆角矩形背景
+    ctx.beginPath()
+    ctx.roundRect(rectX, rectY, rectWidth, rectHeight, 8)
+    ctx.fill()
+    ctx.stroke()
     
     // 绘制地点名称
-    ctx.fillStyle = selectedStyle.value === 'neon' ? '#ffffff' : '#1e293b'
-    ctx.font = '14px Arial'
+    ctx.fillStyle = isStart ? '#E74C3C' : isEnd ? '#27AE60' : '#2E86C1'
     ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-    ctx.fillText(location.name, x, y + markerSize + 8)
+    ctx.textBaseline = 'middle'
+    ctx.fillText(labelText, x, labelY)
+    
+    // 绘制连接线
+    ctx.strokeStyle = isStart ? '#E74C3C' : isEnd ? '#27AE60' : '#2E86C1'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(x, y + 12)
+    ctx.lineTo(x, labelY + 10)
+    ctx.stroke()
   })
 }
 
